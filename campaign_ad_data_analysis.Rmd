@@ -1,0 +1,562 @@
+---
+title: "cryptography_ad_campaign_data_analysis"
+author: "Esther_Wairimu_Kamau"
+date: "1/10/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(tidyverse)
+library(tigerstats)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1.Defining the problem
+The research problem in this case is to find out individuals that are likely to click on a blog advert based on their characteristics which include; Age Daily Time spent on site Area of residence Internet Usage Gender Country of residence
+
+## 2.Metric of Success
+
+The metric success of this project is to identify clients likely to click on the ad after performing intense data analysis(EDA).
+
+## 3.Data Relevance
+The data provided by the client is from the performance of a previous blog advert on the same website. 
+The columns are as follows:
+* **Daily Time Spent on the site-Integer**
+* **Age of the individual browsing-Integer**
+* **Area of residence Internet Usage** 
+* **Gender of the browsing individual**
+* **Country of Residence**
+
+## 4.Understanding the Context
+
+##  5.Experimental Design
+* .Data Loading 
+* .Data cleaning for missing values and outliers
+* .Exploratory Data Analysis 
+* .Conclusion-Detecting the trend in behaviour.
+
+## 6.Data Loading and exploring
+
+###Importing our dataset
+
+
+```{r}
+advertising =read.csv('http://bit.ly/IPAdvertisingData',header = TRUE, sep = ",",fileEncoding = "UTF-8-BOM")
+
+```
+
+###exploring the top of our data
+
+```{r}
+head(advertising)
+```
+
+
+### exploring the bottom of our data
+```{r}
+tail(advertising)
+```
+
+
+
+### Checking the class of the object "advertising"
+
+```{r}
+class(advertising)
+```
+
+
+### Checking the dimension of our dataset
+
+```{r}
+dim(advertising)
+```
+
+
+### Checking the structure of our data frame
+
+```{r}
+str(advertising)
+```
+We can observe that we have a mix of datatypes from intergers to strings
+
+### Getting the names of the columns we will be working with
+
+```{r}
+colnames(advertising)
+```
+we can observe that our column names can all be changed to lowercase
+
+
+## 7.Data cleaning
+
+### Checking for duplicated values in our data set
+```{r}
+anyDuplicated(advertising)
+
+```
+
+
+### Checking if our dataset has any missing values
+
+```{r}
+sum(is.na(advertising))
+
+```
+
+### checking for missing values using case.complete function(just to confirm)
+
+```{r}
+# The function complete.cases() returns a logical vector indicating which cases are complete.
+# list rows of data that have missing values
+advertising[!complete.cases(advertising),]
+```
+
+
+### we rename the column names since they are too long
+
+```{r}
+
+#we will be Using function rename
+advertising=setnames(advertising, tolower(names(advertising[1:10])))
+
+#advertising <-  rename(advertising, c(daily.time.spent.on.site="timespent"))
+#advertising <- rename(advertising, c(ad.topic.line="topic"))
+#advertising <- rename(advertising, c(daily.internet.usage="usage"))
+#advertising <- rename(advertising, c(clicked.on.ad ="clicked"))
+#advertising <- rename(advertising, c(timestamp="timestamp"))
+#advertising <- rename(advertising, c(area.income="income"))
+#advertising <- rename(advertising, c(male="gender"))
+
+```
+
+
+### check if columns have been changed 
+```{r}
+head(advertising,n=3)
+```
+
+
+### checking for outliers, we only need the numerical columns
+
+```{r}
+#first we get the numerical columns 
+
+nums <- unlist(lapply(advertising, is.numeric)) 
+
+numcols <- advertising[ ,nums]
+
+head(numcols,n=3)
+```
+
+
+### checking for unique values
+
+```{r}
+uniqueitems <- unique(advertising)
+
+head(uniqueitems,n=3)
+```
+
+
+### feature enginering the time/date
+
+```{r}
+#we separate months,year and day each on its own
+#library lubridate makes it easier for us to deal with dates
+#install packages first then libraries
+
+library(tidyr)
+library(lubridate)
+
+advertising <- separate(advertising, timestamp, c("Year", "Month", "Day"))
+
+head(advertising,n=3)
+
+```
+
+
+
+# Plotting the boxplot to visualize the outliers in the dataset
+
+```{r}
+boxplot(numcols[,-1], horizontal=TRUE, main="Ad campaign outliers")
+
+```
+We observe that only income has any outliers,it wont affect the analysis so we countinue with the EDA.
+
+
+## 8.Exploratory Data Analysis
+ 
+### Univariate Analysis
+
+```{r}
+#For ease in analysis,we convert the data into a tibble REASONS why we use tibble dataframes
+#never converts string as factor
+#never changes the names of variables
+#never create row names
+library(tidyverse)
+
+adv<-as_tibble(advertising)
+
+head(adv,n=3)
+
+```
+
+
+### Extracting Numerical tibble columns
+
+```{r}
+#we define our tibble numerical dataframe
+
+library(dplyr)
+
+numt=adv %>% select_if(is.numeric)
+
+head(numt,n=3)
+
+```
+
+
+### Extracting categorical tibble columns
+```{r}
+
+Categoryt=adv %>% select_if(is.character)
+
+head(Categoryt,n=3)
+
+```
+
+## We first find the descriptive statistics of the numerical columns
+
+```{r}
+summary(numt)
+
+```
+* We observe that mean of the age of individuals in our dataset is 36 with the oldest being 61.
+* most individuals have an income of 55000 and with the lowest being 13996.
+* the time spent online is mostly 1hr 5mins  with the highest being 1hr 31mins.
+* the cost of being online on hourly(65mins) rate is 180
+* the mean of the page clicks is 0.5 meaning the clicks are equal to 'no clicks'
+
+### Plotting Histograms for numerical columns
+
+```{r}
+
+#par(mfrow = c(2, 2)) 
+#hist(numt$timespent)
+#hist(numt$Age)
+#hist(numt$income)
+#hist(numt$usage)
+#hist(numt$gender)
+#hist(numt$clicked)
+
+```
+
+### numerical columns mode
+```{r}
+
+#The mode is the value that appears most frequently in a data set
+#Finding the mode of all numerical columns 
+#we start with age
+
+#v<-adv%>% pull(Age)
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+Age.Mode<-getmode(adv$Age)
+Age.Mode
+
+```
+The age that appears most is 31years so most individuals who click on the page are in this age group
+```{r}
+#we start with age
+
+#v2<-adv%>% pull(income)
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+income.Mode<-getmode(adv$income)
+income.Mode
+
+```
+We see that most individuals in dataset's income is range of 60000 and above
+
+
+```{r}
+#we start with age
+
+#v3<-adv%>% pull(timespent)
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+time.Mode<-getmode(adv$timespent)
+time.Mode
+
+```
+We observe that most time spent that appears most times is 62 which means that our univariate plots were correct
+
+
+
+```{r}
+#we start with age
+
+#v5<-adv%>% pull(usage)
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+usage.Mode<-getmode(adv$usage)
+usage.Mode
+
+```
+most guys use 167 on every time they spend online.Which is almost same with the univariate plots.
+
+### Plot frequency plots for categorical columns
+
+```{r}
+#we start with country column
+
+#country <- Categoryt$Country 
+#Country_frequency<- table(country)
+#desc(Country_frequency)
+#barplot(Country_frequency,col="Blue")
+
+```
+we observe that country that has most customers is Afghanistan followed
+albania as we can see in first console the second plot confirms it.
+
+
+```{r}
+
+#secondly we tackle the city column
+#f2 <- Categoryt$City
+#f2_frequency<- table(f2)
+#desc(f2_frequency)
+#barplot(f2_frequency,col="Red")
+
+```
+we observe that williamsport city appears thrice more than  most city column.It has too many unique values.
+
+
+```{r}
+#
+f3 <- Categoryt$Year
+f3_frequency<- table(f3)
+desc(f3_frequency)
+barplot(f3_frequency,col="Yellow")
+
+```
+all observations were taken from 2016
+
+
+```{r}
+f4 <- Categoryt$Month
+f4_frequency<- table(f4)
+desc(f4_frequency)
+barplot(f4_frequency,col="Grey")
+
+```
+we observe that the month with highest traffic is February followed by march with january,April and may being the same.Also there is consistent traffic month on month.
+
+
+
+```{r}
+f5 <- Categoryt$Day
+f5_frequency<- table(f5)
+head.matrix(f5_frequency)
+barplot(f5_frequency,col="green")
+
+```
+we observe that no specific time of the month is there extra high traffic or extra low traffic is almost same all days.But on 31st we can notice is weirdly low.
+
+
+```{r}
+f4 <- Categoryt$topic
+f4_frequency<- table(f4)
+head.matrix(f4_frequency)
+barplot(f4_frequency,col="Blue",horiz=TRUE)
+
+```
+This means all topics have the same distribution they are too unique and none has counts than the other.
+
+
+### 9.Bivariate Analysis
+
+
+```{r}
+
+#clicks of individuals in our dataset month on month
+
+ggplot(adv, aes(x = Clicked,fill = Month)) + geom_bar(position = "stack")
+
+```
+we observe that the distrbution of individuals who clicked and the ones who didn't is the same monthly.
+
+
+```{r}
+#time spent online versus the income of individuals
+geom_line()
+ggplot(data =adv,aes(x=timespent,y=usage))+
+geom_line()
+
+```
+We observe that the more time on spends online the more the usage as we can see above
+
+
+```{r}
+#time spent online versus the income of individuals
+
+geom_line()
+ggplot(data =adv,aes(x=timespent,y=Day))+geom_line()
+
+```
+we observe that on a daily basis people spend time online on the page
+
+
+```{r}
+# plot income changes by month, for each Gender
+ggplot(adv, aes(x=Month, y = income)) +
+geom_line(color="grey") +
+geom_point(color="blue") +
+facet_wrap(~gender) + 
+theme_minimal(base_size = 9) +
+theme(axis.text.x = element_text(angle = 45, 
+                                   hjust = 1)) +
+  labs(title = "Changes in income by Gender",
+       x = "Gender",
+       y = "income") 
+```
+*we note that gender o has fewer individuals who earn below 20000 than gender 1
+* we also note that gender 0 and gender 1 almost have the same salaries over the months
+* in may and december there is partial disparity when it comes to the incomes gender o has more income earning individuals in those months than gender 1
+
+
+```{r}
+# We check on the timespent versus the age and the click
+qplot(x=Age,data=adv,group=timespent,colour=Clicked,bins=30)
+```
+we can observe that individuals as age decreases the clicks decrease but time spent in some  ages like 30 increase alot.But from 38 to around 40 the time spent decreases but the clicks increase.
+
+```{r}
+qplot(x=income,data=adv,group=timespent,colour=Clicked,bins=30)
+```
+we can observe that the plot is skewed to right meaning that as income increases the more the more the time spent which also increases click
+
+
+
+#### relationships between the target variable(clicked) and features
+
+```{r}
+# Plot to show realtionship between clicked and income
+
+qplot(income, 
+      clicked, 
+      data = adv, 
+      geom = c("point", "smooth"), 
+      alpha = I(1 / 5))
+
+```
+
+
+
+```{r}
+
+# Plot to show realtionship between clicked and income
+qplot(Age, 
+      clicked, 
+      data = adv, 
+      geom = c("point", "smooth"), 
+      alpha = I(1 / 5))
+```
+
+```{r}
+
+# Plot to show realtionship between clicked and income
+qplot(usage,
+      clicked, 
+      data = adv, 
+      geom = c("point", "smooth"), 
+      alpha = I(1 / 5))
+```
+
+
+```{r}
+
+# Plot to show realtionship between clicked and income
+qplot(timespent, 
+      clicked, 
+      data = adv, 
+      geom = c("point", "smooth"), 
+      alpha = I(1 / 5))
+```
+
+
+### 10.Multivariate Analysis
+
+```{r}
+#we look at the timespent considering usage groping by clicked or not clicked
+# Color by groups; auto.key = TRUE to show legend
+cloud(timespent ~ timespent * usage, 
+       group = Clicked, data = adv,
+       auto.key = TRUE)
+```
+we observe that most clicked spend alot time online and have high usage the purple cluster represents the clicked and blue not clicked.
+
+
+
+
+
+```{r}
+#we look at time spent and usage versus the Gender
+cloud(timespent ~ timespent * usage, 
+       group = Gender, data = adv,
+       auto.key = TRUE)
+```
+No Gender spends more time online than the other or has high usage than the other its the same 
+
+```{r}
+#we llok if Age affescts time spent online and page being clicked
+cloud(timespent ~ timespent * Age, 
+       group = Clicked, data = adv,
+       auto.key = TRUE)
+```
+We observe that As Age increases and time spent increases so does the click .But age seems to be clustered more in the middle when it comes to click which is purple.
+
+```{r}
+library(corrplot)
+# Compute a correlation matrix
+
+corr <- round(cor((adv[0:4])),1) 
+corr
+
+
+corrplot(cor(corr),        # Correlation matrix
+         method = "shade", # Correlation plot method
+         type = "full",    # Correlation plot style (also "upper" and "lower")
+         diag = TRUE,      # If TRUE (default), adds the diagonal
+         tl.col = "black", # Labels color
+         bg = "white",     # Background color
+         title = "correalation matrix",# Main title
+         col = NULL)       # Color palette
+```
+we observe that The *income* and *Daily time spent on the site* columns have a large positive correlation and so does the *usage* and *timespent*.*Age* has a very negative correlation with time spent
+
+
+### 11.Recommendations
+
+From our indepth Analysis we  would advice our client to;
+
+*come up with ad campaigns that lure young people especially the age group (28 to 30) who spent alot of time online.
+
+* since gender is does not affect click she should still decide on her target market invest her resources.
+
+*People who earn alot tend to be the biggest clickers but they dont spend alot of time online.Would recommend to client to come up with service flexible to any income earner since the usage is the same whether Wealthy or not.
+
+*
